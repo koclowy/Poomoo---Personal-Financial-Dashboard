@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useFunds } from '../hooks/useFunds'
@@ -20,6 +20,7 @@ import ContributionLineChart from '../components/dashboard/ContributionLineChart
 import ContributorBreakdown from '../components/dashboard/ContributorBreakdown'
 import MonthlyContributionChart from '../components/dashboard/MonthlyContributionChart'
 import WidgetPickerPanel from '../components/dashboard/WidgetPickerPanel'
+import CollaboratorsPanel from '../components/settings/CollaboratorsPanel'
 
 const BROWN = '#A67B50'
 
@@ -260,6 +261,10 @@ export default function Dashboard() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const [widgetLayout, setWidgetLayout] = useState(DEFAULT_WIDGET_LAYOUT)
   const [transactions, setTransactions] = useState([])
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showCollabModal, setShowCollabModal] = useState(false)
+  const userMenuRef = useRef(null)
+  const layoutInitialised = useRef(false)
   const navigate = useNavigate()
 
   // Default to first fund
@@ -267,13 +272,17 @@ export default function Dashboard() {
     if (funds.length && !selectedFundId) setSelectedFundId(funds[0].id)
   }, [funds, selectedFundId])
 
-  // Load saved widget layout from localStorage
+  // Load saved widget layout from localStorage — fires once when dashboardId first resolves
   useEffect(() => {
-    if (!dashboardId) return
-    const saved = localStorage.getItem(`poomoo-wl-${dashboardId}`)
-    if (saved) {
-      try { setWidgetLayout(JSON.parse(saved)) } catch {}
-    }
+    if (!dashboardId || layoutInitialised.current) return
+    layoutInitialised.current = true
+    try {
+      const saved = localStorage.getItem(`poomoo-wl-${dashboardId}`)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) setWidgetLayout(parsed)
+      }
+    } catch {}
   }, [dashboardId])
 
   // Firestore transactions
@@ -286,7 +295,18 @@ export default function Dashboard() {
     return unsub
   }, [dashboardId])
 
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   async function handleSignOut() {
+    setShowUserMenu(false)
     await signOutUser()
     navigate('/login')
   }
@@ -314,9 +334,9 @@ export default function Dashboard() {
 
   function addWidget(widgetId) {
     if (widgetLayout.some((l) => l.i === widgetId)) return
-    const maxY = widgetLayout.reduce((m, l) => Math.max(m, l.y + l.h), 0)
-    const next = [...widgetLayout, { i: widgetId, x: 0, y: maxY, w: 6, h: 4 }]
+    const next = [...widgetLayout, { i: widgetId, x: 0, y: Infinity, w: 6, h: 4, minW: 2, minH: 2 }]
     handleLayoutChange(next)
+    setEditMode(true)
   }
 
   // Derived data
@@ -348,10 +368,10 @@ export default function Dashboard() {
       'contributor-pie':       { title: 'Contributor breakdown', subtitle: '',           content: <ContributorBreakdown transactions={transactions} /> },
     }
     const def = WIDGET_MAP[item.i]
-    if (!def) return <div key={item.i} />
+    if (!def) return <div key={item.i} className="h-full" />
     return (
-      <div key={item.i}>
-        <WidgetCard title={def.title} subtitle={def.subtitle} onRemove={() => removeWidget(item.i)}>
+      <div key={item.i} className="h-full">
+        <WidgetCard title={def.title} subtitle={def.subtitle} editMode={editMode} onRemove={() => removeWidget(item.i)}>
           {def.content}
         </WidgetCard>
       </div>
@@ -471,7 +491,12 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <span className="text-xs text-gray-500">+ Collaborators</span>
+            <button
+                onClick={() => setShowCollabModal(true)}
+                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                + Collaborators
+              </button>
           </div>
           <Link
             to="/settings"
@@ -560,19 +585,37 @@ export default function Dashboard() {
               >
                 + Widget
               </button>
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full cursor-pointer ml-1" onClick={handleSignOut} title="Click to sign out" />
-              ) : (
-                <button onClick={handleSignOut} className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ml-1" style={{ backgroundColor: BROWN }} title="Sign out">
-                  {user?.displayName?.charAt(0)?.toUpperCase() || 'A'}
+              <div className="relative ml-1" ref={userMenuRef}>
+                <button onClick={() => setShowUserMenu((v) => !v)} className="focus:outline-none">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full cursor-pointer" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer" style={{ backgroundColor: BROWN }}>
+                      {user?.displayName?.charAt(0)?.toUpperCase() || 'A'}
+                    </div>
+                  )}
                 </button>
-              )}
+                {showUserMenu && (
+                  <div className="absolute top-10 right-0 z-50 bg-white rounded-lg shadow-lg border border-gray-100 w-52 py-1">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="text-sm font-medium text-gray-900 truncate">{user?.displayName}</div>
+                      <div className="text-xs text-gray-400 truncate">{user?.email}</div>
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-5">
+        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-5 relative">
 
           {funds.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-24">
@@ -619,124 +662,13 @@ export default function Dashboard() {
               )}
 
               {/* ── Widget area ── */}
-              {editMode ? (
-                <DashboardGrid
-                  layout={widgetLayout}
-                  onLayoutChange={handleLayoutChange}
-                  editMode={true}
-                >
-                  {widgetLayout.map(renderWidget)}
-                </DashboardGrid>
-              ) : (
-                <>
-                  {/* Charts row 1 */}
-                  <div className="grid grid-cols-5 gap-4">
-                    <div className="col-span-3 bg-white rounded-2xl border border-gray-100 p-5">
-                      <div className="flex items-start justify-between mb-1">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">Balance over time</div>
-                          <div className="text-xs text-gray-400">cumulative</div>
-                        </div>
-                        <DotsMenu />
-                      </div>
-                      <div className="mt-4" style={{ height: 200 }}>
-                        <BalanceOverTimeChart fund={selectedFund} />
-                      </div>
-                    </div>
-                    <div className="col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
-                      <div className="flex items-start justify-between mb-1">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">Monthly deposits</div>
-                          <div className="text-xs text-gray-400">2025</div>
-                        </div>
-                        <DotsMenu />
-                      </div>
-                      <div className="mt-4" style={{ height: 200 }}>
-                        <MonthlyDepositsChart fund={selectedFund} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Charts row 2 */}
-                  <div className="grid grid-cols-5 gap-4">
-                    <div className="col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
-                      <div className="flex items-start justify-between mb-1">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">Split</div>
-                          <div className="text-xs text-gray-400">
-                            {split.length >= 2 ? `you vs ${split[1]?.name}` : 'contributor breakdown'}
-                          </div>
-                        </div>
-                        <DotsMenu />
-                      </div>
-                      <SplitWidget split={split} />
-                    </div>
-                    <div className="col-span-3 bg-white rounded-2xl border border-gray-100 p-5">
-                      <div className="flex items-start justify-between mb-1">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">Who contributed</div>
-                          <div className="text-xs text-gray-400">across all funds</div>
-                        </div>
-                        <DotsMenu />
-                      </div>
-                      <WhoContributedWidget allFundSplits={allFundSplits} />
-                    </div>
-                  </div>
-
-                  {/* Transactions */}
-                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">Transactions</div>
-                        <div className="text-xs text-gray-400">{selectedFund?.name}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                          Export
-                        </button>
-                        <DotsMenu />
-                      </div>
-                    </div>
-                    {fundRows.length === 0 ? (
-                      <div className="py-12 text-center text-sm text-gray-400">No data for this fund</div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-gray-100">
-                              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Date</th>
-                              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</th>
-                              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">By</th>
-                              <th className="text-right px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {fundRows.map((row, i) => (
-                              <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-3.5 text-sm text-gray-500 font-mono">{row.date}</td>
-                                <td className="px-6 py-3.5 text-sm text-gray-800">{row.description}</td>
-                                <td className="px-6 py-3.5">
-                                  {row.by && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
-                                      {row.by}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className={`px-6 py-3.5 text-sm text-right font-semibold font-mono ${row.amount >= 0 ? 'text-gray-900' : 'text-red-500'}`}>
-                                  {row.amount >= 0 ? '+' : ''}RM {Math.abs(row.amount).toLocaleString('en-MY', { minimumFractionDigits: 0 })}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+              <DashboardGrid
+                layout={widgetLayout}
+                onLayoutChange={handleLayoutChange}
+                editMode={editMode}
+              >
+                {widgetLayout.map(renderWidget)}
+              </DashboardGrid>
             </>
           )}
         </div>
@@ -766,6 +698,29 @@ export default function Dashboard() {
           onAdd={(id) => { addWidget(id); setShowWidgetPicker(false) }}
           onClose={() => setShowWidgetPicker(false)}
         />
+      )}
+      {showCollabModal && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+          onClick={(e) => e.target === e.currentTarget && setShowCollabModal(false)}
+        >
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-gray-900">Collaborators</h2>
+              <button
+                onClick={() => setShowCollabModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <CollaboratorsPanel
+              dashboardId={dashboardId}
+              currentUserId={user?.uid}
+              isOwner={!userDoc || userDoc?.role === 'owner'}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

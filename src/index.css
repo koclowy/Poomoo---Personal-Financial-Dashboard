@@ -1,1 +1,42 @@
 @import "tailwindcss";
+
+/* Ensure react-grid-layout resize handles are always visible and clickable */
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  z-index: 10;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #A67B50;
+  border-bottom: 2px solid #A67B50;
+  border-radius: 1px;
+}
+
+.react-grid-item > .react-resizable-handle {
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 20 !important;
+}
+
+.react-grid-layout--editing .react-grid-item > .react-resizable-handle,
+.react-grid-item.resizing > .react-resizable-handle,
+.react-grid-item.react-draggable-dragging > .react-resizable-handle {
+  opacity: 1;
+}
+
+/* Charts must not intercept drag events in edit mode */
+.react-grid-layout--editing .react-grid-item canvas,
+.react-grid-layout--editing .react-grid-item svg:not(.widget-handle svg) {
+  pointer-events: none;
+}

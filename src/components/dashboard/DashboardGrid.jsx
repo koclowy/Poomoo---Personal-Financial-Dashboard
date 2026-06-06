@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactGridLayout from 'react-grid-layout'
-import 'react-grid-layout/css/styles.css'
-import 'react-resizable/css/styles.css'
 
 export default function DashboardGrid({ layout, onLayoutChange, children, editMode = false }) {
   const containerRef = useRef(null)
@@ -17,7 +15,7 @@ export default function DashboardGrid({ layout, onLayoutChange, children, editMo
   }, [])
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className={editMode ? 'react-grid-layout--editing' : ''}>
       <ReactGridLayout
         width={width}
         layout={layout}
@@ -27,6 +25,9 @@ export default function DashboardGrid({ layout, onLayoutChange, children, editMo
         draggableHandle=".widget-handle"
         isDraggable={editMode}
         isResizable={editMode}
+        resizeHandles={['se']}
+        compactType={null}
+        preventCollision={false}
         margin={[16, 16]}
         containerPadding={[0, 0]}
       >

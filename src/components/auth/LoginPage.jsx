@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signInWithGoogle } from '../../firebase/auth'
+import { useAuth } from '../../hooks/useAuth'
 
 const BROWN = '#A67B50'
 const BG_LEFT = '#EDECEA'
@@ -12,13 +13,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (user) navigate('/dashboard', { replace: true })
+  }, [user, navigate])
 
   async function handleGoogleSignIn() {
     setLoading(true)
     setError(null)
     try {
       await signInWithGoogle()
-      navigate('/dashboard')
     } catch (err) {
       setError('Sign-in failed. Please try again.')
       setLoading(false)

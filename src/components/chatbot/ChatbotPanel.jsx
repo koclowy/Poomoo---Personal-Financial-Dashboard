@@ -9,11 +9,16 @@ const WELCOME = `Hi! I'm your Poomoo assistant. You can tell me things like:
 • "Set Siti's emergency fund contribution for June to RM 200"
 • "How much have I saved in total this year?"`
 
+let _idCounter = 0
+function nextId() { return ++_idCounter }
+
 export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose }) {
-  const [messages, setMessages] = useState([{ role: 'bot', content: WELCOME, type: 'text' }])
+  const [messages, setMessages] = useState([{ id: nextId(), role: 'bot', content: WELCOME, type: 'text' }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingEdit, setPendingEdit] = useState(null)
+  const [confirmingId, setConfirmingId] = useState(null)
+  const [history, setHistory] = useState([])
   const bottomRef = useRef()
   const addToast = useToast()
 
@@ -22,7 +27,13 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
   }, [messages, loading])
 
   function addMessage(msg) {
-    setMessages((prev) => [...prev, msg])
+    const id = nextId()
+    setMessages((prev) => [...prev, { id, ...msg }])
+    return id
+  }
+
+  function updateMessage(id, updates) {
+    setMessages((prev) => prev.map((m) => m.id === id ? { ...m, ...updates } : m))
   }
 
   async function handleSend() {
@@ -39,12 +50,18 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
       return
     }
 
-    const result = await askGemini(funds, text, currentUser)
+    const { result, rawText } = await askGemini(funds, text, currentUser, history)
     setLoading(false)
 
+    setHistory((prev) => [
+      ...prev,
+      { role: 'user', text },
+      { role: 'model', text: rawText },
+    ])
+
     if (result.action === 'update_cell') {
-      setPendingEdit(result)
-      addMessage({ role: 'bot', content: result, type: 'confirm' })
+      const confirmId = addMessage({ role: 'bot', content: result, type: 'confirm' })
+      setPendingEdit({ ...result, confirmMsgId: confirmId })
     } else if (result.action === 'clarify') {
       addMessage({ role: 'bot', content: result.question, type: 'text' })
     } else {
@@ -54,22 +71,35 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
 
   async function handleConfirm() {
     if (!pendingEdit) return
-    const { fundId, fundName, month, column, value } = pendingEdit
+    const { fundId, fundName, month, column, value, confirmMsgId } = pendingEdit
     const fund = funds.find((f) => f.id === fundId)
     if (!fund) {
-      addMessage({ role: 'bot', content: 'Could not find that fund. Please try again.', type: 'text' })
+      updateMessage(confirmMsgId, { type: 'text', content: 'Could not find that fund. Please try again.' })
       setPendingEdit(null)
       return
     }
 
+    setConfirmingId(confirmMsgId)
     setLoading(true)
     setPendingEdit(null)
 
     try {
       const monthCol = fund.columns[0]
+      const amountCol = fund.columns.find((c) => /^(amount|total|balance)$/i.test(c.trim()))
+      const contributorCols = fund.columns.filter((c) => {
+        const lower = c.toLowerCase()
+        return c !== monthCol && !['amount', 'total', 'balance', 'date', 'month'].includes(lower)
+      })
+
       const updatedData = fund.data.map((row) => {
         if (String(row[monthCol]) === String(month)) {
-          return { ...row, [column]: value }
+          const updatedRow = { ...row, [column]: value }
+          if (contributorCols.length > 0 && amountCol) {
+            updatedRow[amountCol] = contributorCols.reduce((sum, col) => {
+              return sum + (parseFloat(String(updatedRow[col]).replace(/[^0-9.]/g, '')) || 0)
+            }, 0)
+          }
+          return updatedRow
         }
         return row
       })
@@ -86,19 +116,32 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
         `AI edit: set ${column} to ${value}`
       )
 
-      addMessage({ role: 'bot', content: `Done! Updated ${fundName} — ${column} for ${month} is now RM ${Number(value).toLocaleString()}.`, type: 'text' })
+      updateMessage(confirmMsgId, {
+        type: 'success',
+        content: `Done! Updated ${fundName} — ${column} for ${month} is now RM ${Number(value).toLocaleString()}.`,
+      })
       addToast?.('Edit applied — fund updated')
     } catch (err) {
-      addMessage({ role: 'bot', content: 'Something went wrong applying the edit. Please try again.', type: 'text' })
+      updateMessage(confirmMsgId, { type: 'text', content: 'Something went wrong applying the edit. Please try again.' })
       addToast?.('Update failed — please try again', 'error')
     } finally {
       setLoading(false)
+      setConfirmingId(null)
     }
   }
 
   function handleCancel() {
+    if (!pendingEdit) return
+    const { confirmMsgId } = pendingEdit
+    updateMessage(confirmMsgId, { type: 'text', content: 'Edit cancelled.' })
     setPendingEdit(null)
-    addMessage({ role: 'bot', content: 'Edit cancelled.', type: 'text' })
+  }
+
+  function handleClearChat() {
+    setMessages([{ id: nextId(), role: 'bot', content: WELCOME, type: 'text' }])
+    setHistory([])
+    setPendingEdit(null)
+    setConfirmingId(null)
   }
 
   return (
@@ -108,16 +151,25 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
           <div className="font-bold text-slate-900">Poomoo AI</div>
           <div className="text-xs text-slate-400">Powered by Gemini</div>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClearChat}
+            className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            Clear
+          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {messages.map((msg, i) => (
+        {messages.map((msg) => (
           <ChatMessage
-            key={i}
+            key={msg.id}
             {...msg}
             onConfirm={msg.type === 'confirm' ? handleConfirm : undefined}
             onCancel={msg.type === 'confirm' ? handleCancel : undefined}
+            confirmDisabled={confirmingId === msg.id || loading}
           />
         ))}
         {loading && (
@@ -153,7 +205,8 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
           <button
             onClick={handleSend}
             disabled={loading || !input.trim() || !funds?.length}
-            className="px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: '#A67B50' }}
+            className="px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#A67B50' }}
           >
             Send
           </button>
