@@ -22,7 +22,7 @@ export default function DashboardGrid({ layout, onLayoutChange, children, editMo
         cols={12}
         rowHeight={80}
         onLayoutChange={onLayoutChange}
-        draggableHandle=".widget-handle"
+        draggableHandle={editMode ? '.widget-handle' : '.widget-handle-disabled'}
         isDraggable={editMode}
         isResizable={editMode}
         resizeHandles={['se']}

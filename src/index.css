@@ -25,6 +25,7 @@
 
 .react-grid-item > .react-resizable-handle {
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
   z-index: 20 !important;
 }
@@ -33,6 +34,7 @@
 .react-grid-item.resizing > .react-resizable-handle,
 .react-grid-item.react-draggable-dragging > .react-resizable-handle {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* Charts must not intercept drag events in edit mode */
