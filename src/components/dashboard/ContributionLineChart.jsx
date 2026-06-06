@@ -1,39 +1,37 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { parseNum, getDateCol } from '../../utils/fundUtils'
 
-function parseNum(val) {
-  return parseFloat(String(val ?? '').replace(/[^0-9.]/g, '')) || 0
-}
-
-const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
+const COLORS = ['#A67B50', '#7A5C3A', '#C9A882', '#4B3728', '#D4A574', '#6B5B47']
 
 export default function ContributionLineChart({ funds }) {
   if (!funds?.length) return <div className="text-slate-400 text-sm text-center py-8">No data</div>
 
-  const allMonths = new Set()
-  const contributorTotals = {}
+  // For each fund, show its total-column value per month over time
+  const allMonths = []
+  const seenMonths = new Set()
 
   funds.forEach((fund) => {
-    if (!fund.data || !fund.columns) return
-    const monthCol = fund.columns[0]
-    const numCols = fund.columns.slice(1)
-
+    const dateCol = getDateCol(fund)
+    if (!dateCol || !fund.data) return
     fund.data.forEach((row) => {
-      const month = String(row[monthCol] ?? '')
-      if (month) allMonths.add(month)
-      numCols.forEach((col) => {
-        if (!contributorTotals[col]) contributorTotals[col] = {}
-        if (!contributorTotals[col][month]) contributorTotals[col][month] = 0
-        contributorTotals[col][month] += parseNum(row[col])
-      })
+      const month = String(row[dateCol] ?? '').trim()
+      if (month && !seenMonths.has(month)) {
+        seenMonths.add(month)
+        allMonths.push(month)
+      }
     })
   })
 
-  const months = [...allMonths]
-  const contributors = Object.keys(contributorTotals)
-
-  const chartData = months.map((m) => {
-    const point = { month: m }
-    contributors.forEach((c) => { point[c] = contributorTotals[c][m] || 0 })
+  const chartData = allMonths.map((month) => {
+    const point = { month }
+    funds.forEach((fund) => {
+      const dateCol = getDateCol(fund)
+      if (!dateCol || !fund.data) return
+      const totalCol = fund.columns?.find((c) => /^(amount|total|balance)$/i.test(c.trim()))
+        || fund.columns?.[fund.columns.length - 1]
+      const row = fund.data.find((r) => String(r[dateCol] ?? '').trim() === month)
+      point[fund.name] = row && totalCol ? parseNum(row[totalCol]) : 0
+    })
     return point
   })
 
@@ -42,11 +40,11 @@ export default function ContributionLineChart({ funds }) {
       <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
         <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-        <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `RM${(v/1000).toFixed(0)}k`} />
-        <Tooltip formatter={(v) => [`RM ${v.toLocaleString()}`, undefined]} />
+        <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `RM${(v / 1000).toFixed(1)}k`} />
+        <Tooltip formatter={(v) => [`RM ${Number(v).toLocaleString('en-MY', { minimumFractionDigits: 2 })}`, undefined]} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
-        {contributors.map((c, i) => (
-          <Line key={c} type="monotone" dataKey={c} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
+        {funds.map((f, i) => (
+          <Line key={f.id} type="monotone" dataKey={f.name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
         ))}
       </LineChart>
     </ResponsiveContainer>

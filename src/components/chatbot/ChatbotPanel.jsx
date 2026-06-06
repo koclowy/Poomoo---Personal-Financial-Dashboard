@@ -2,8 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import ChatMessage from './ChatMessage'
 import { askGemini } from './useChatbot'
 import { updateFundData, logTransaction } from '../../firebase/firestore'
-import { writeXLSX } from '../upload/useSheetParser'
-import { uploadXLSX } from '../../firebase/storage'
 import { useToast } from '../Toast'
 
 const WELCOME = `Hi! I'm your Poomoo assistant. You can tell me things like:
@@ -78,9 +76,6 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
 
       await updateFundData(fundId, updatedData)
 
-      const buffer = writeXLSX(fund.columns, updatedData)
-      await uploadXLSX(dashboardId, fundName, buffer)
-
       await logTransaction(
         fundId,
         dashboardId,
@@ -153,12 +148,12 @@ export default function ChatbotPanel({ funds, dashboardId, currentUser, onClose 
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             disabled={loading || !funds?.length}
             placeholder="Type a message…"
-            className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:opacity-50"
+            className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#A67B50] disabled:opacity-50"
           />
           <button
             onClick={handleSend}
             disabled={loading || !input.trim() || !funds?.length}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: '#A67B50' }}
           >
             Send
           </button>

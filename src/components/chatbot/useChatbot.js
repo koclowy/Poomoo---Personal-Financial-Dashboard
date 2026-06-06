@@ -1,5 +1,5 @@
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
 
 export async function askGemini(funds, userMessage, currentUser) {
   const fundsContext = funds.map((f) => ({
@@ -56,14 +56,18 @@ If the request is not about editing a fund:
       }),
     })
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}))
+      const msg = errBody?.error?.message || `HTTP ${res.status}`
+      return { action: 'chat', reply: `Gemini error: ${msg}` }
+    }
 
     const json = await res.json()
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
     const clean = text.replace(/```json|```/g, '').trim()
 
     return JSON.parse(clean)
-  } catch {
-    return { action: 'chat', reply: "Sorry, something went wrong. Please try again." }
+  } catch (err) {
+    return { action: 'chat', reply: `Error: ${err.message}` }
   }
 }

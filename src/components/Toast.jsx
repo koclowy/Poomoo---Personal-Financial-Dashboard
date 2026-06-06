@@ -21,8 +21,9 @@ export function ToastProvider({ children }) {
           <div
             key={t.id}
             className={`px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white pointer-events-auto transition-all ${
-              t.type === 'error' ? 'bg-red-500' : 'bg-green-500'
+              t.type === 'error' ? 'bg-red-500' : ''
             }`}
+            style={t.type !== 'error' ? { backgroundColor: '#A67B50' } : {}}
           >
             {t.message}
           </div>

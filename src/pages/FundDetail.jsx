@@ -67,7 +67,7 @@ export default function FundDetail() {
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <svg className="animate-spin w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+      <svg className="animate-spin w-8 h-8" style={{ color: '#A67B50' }} fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
@@ -79,7 +79,7 @@ export default function FundDetail() {
       <div className="text-center">
         <div className="text-4xl mb-3">🔍</div>
         <div className="text-slate-600">Fund not found</div>
-        <Link to="/dashboard" className="mt-4 inline-block text-blue-600 hover:underline">Back to Dashboard</Link>
+        <Link to="/dashboard" className="mt-4 inline-block hover:underline" style={{ color: '#A67B50' }}>Back to Dashboard</Link>
       </div>
     </div>
   )
@@ -95,7 +95,7 @@ export default function FundDetail() {
         <div className="font-bold text-slate-900 text-lg flex-1">{fund.name}</div>
         <button
           onClick={handleDownload}
-          className="px-4 py-2 text-sm bg-green-50 text-green-700 border border-green-200 rounded-xl font-medium hover:bg-green-100"
+          className="px-4 py-2 text-sm rounded-xl font-medium text-white" style={{ backgroundColor: '#A67B50' }}
         >
           Download .xlsx
         </button>

@@ -59,7 +59,7 @@ export default function CollaboratorsPanel({ dashboardId, currentUserId, isOwner
               {user.photoURL ? (
                 <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ backgroundColor: '#A67B50' }}>
                   {(user.name || user.email || '?')[0].toUpperCase()}
                 </div>
               )}
@@ -94,12 +94,12 @@ export default function CollaboratorsPanel({ dashboardId, currentUserId, isOwner
               onChange={(e) => setInviteEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
               placeholder="colleague@email.com"
-              className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
+              className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#A67B50]"
             />
             <button
               onClick={handleInvite}
               disabled={sending || !inviteEmail.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-50" style={{ backgroundColor: '#A67B50' }}
             >
               {sending ? 'Sending…' : 'Invite'}
             </button>

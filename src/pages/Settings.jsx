@@ -20,7 +20,7 @@ export default function Settings() {
             {user?.photoURL ? (
               <img src={user.photoURL} alt="" className="w-14 h-14 rounded-full" />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl text-white" style={{ backgroundColor: '#A67B50' }}>
                 {(user?.displayName || user?.email || '?')[0].toUpperCase()}
               </div>
             )}

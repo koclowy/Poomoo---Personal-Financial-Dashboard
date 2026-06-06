@@ -6,6 +6,13 @@ export default function FundDetailTable({ fund }) {
   const { columns, data } = fund
   const lastIdx = data.length - 1
 
+  function formatCell(val) {
+    if (typeof val === 'number') {
+      return val.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    }
+    return String(val ?? '')
+  }
+
   return (
     <div className="overflow-auto h-full">
       <table className="text-xs w-full">
@@ -22,12 +29,12 @@ export default function FundDetailTable({ fund }) {
               key={i}
               className={
                 i === lastIdx
-                  ? 'bg-blue-50 font-medium'
+                  ? 'bg-amber-50 font-medium'
                   : i % 2 === 0 ? 'bg-white' : 'bg-slate-50'
               }
             >
               {columns.map((col) => (
-                <td key={col} className="px-3 py-2 whitespace-nowrap">{String(row[col] ?? '')}</td>
+                <td key={col} className="px-3 py-2 whitespace-nowrap">{formatCell(row[col])}</td>
               ))}
             </tr>
           ))}

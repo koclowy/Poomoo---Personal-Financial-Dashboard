@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
-import { parseXLSX, writeXLSX } from './useSheetParser'
-import { uploadXLSX } from '../../firebase/storage'
+import { parseXLSX } from './useSheetParser'
 import { createFund } from '../../firebase/firestore'
 
 const MAX_SIZE = 10 * 1024 * 1024
@@ -37,9 +36,7 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
     setUploading(true)
     setError(null)
     try {
-      const buffer = writeXLSX(columns, parsedData)
-      const storagePath = await uploadXLSX(dashboardId, fundName.trim(), buffer)
-      await createFund(dashboardId, fundName.trim(), columns, parsedData, storagePath)
+      await createFund(dashboardId, fundName.trim(), columns, parsedData, null)
       onSuccess?.()
       onClose()
     } catch (err) {
@@ -64,7 +61,7 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
 
           <div
             onClick={() => inputRef.current?.click()}
-            className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all"
+            className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-[#A67B50] hover:bg-[#F8F1EA] transition-all"
           >
             <input
               ref={inputRef}
@@ -95,7 +92,7 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
                 type="text"
                 value={fundName}
                 onChange={(e) => setFundName(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#A67B50]"
                 placeholder="e.g. Retirement Fund"
               />
             </div>
@@ -135,7 +132,7 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
           <button
             onClick={handleUpload}
             disabled={!file || uploading || !fundName.trim()}
-            className="px-5 py-2 text-sm rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-5 py-2 text-sm rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" style={{ backgroundColor: '#A67B50' }}
           >
             {uploading && (
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">

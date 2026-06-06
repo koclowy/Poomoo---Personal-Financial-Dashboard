@@ -1,29 +1,37 @@
-import { ResponsiveGridLayout } from 'react-grid-layout'
+import { useState, useEffect, useRef } from 'react'
+import ReactGridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
-export default function DashboardGrid({ layout, onLayoutChange, children }) {
-  const breakpoints = { lg: 1200, md: 768, sm: 0 }
-  const cols = { lg: 12, md: 12, sm: 1 }
+export default function DashboardGrid({ layout, onLayoutChange, children, editMode = false }) {
+  const containerRef = useRef(null)
+  const [width, setWidth] = useState(1200)
 
-  const responsiveLayouts = {
-    lg: layout,
-    md: layout,
-    sm: layout.map((item, i) => ({ ...item, x: 0, y: i * 4, w: 1, h: 4 })),
-  }
+  useEffect(() => {
+    if (!containerRef.current) return
+    const ro = new ResizeObserver((entries) => {
+      setWidth(entries[0].contentRect.width)
+    })
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [])
 
   return (
-    <ResponsiveGridLayout
-      layouts={responsiveLayouts}
-      breakpoints={breakpoints}
-      cols={cols}
-      rowHeight={80}
-      onLayoutChange={(newLayout) => onLayoutChange?.(newLayout)}
-      draggableHandle=".widget-handle"
-      margin={[16, 16]}
-      containerPadding={[0, 0]}
-    >
-      {children}
-    </ResponsiveGridLayout>
+    <div ref={containerRef}>
+      <ReactGridLayout
+        width={width}
+        layout={layout}
+        cols={12}
+        rowHeight={80}
+        onLayoutChange={onLayoutChange}
+        draggableHandle=".widget-handle"
+        isDraggable={editMode}
+        isResizable={editMode}
+        margin={[16, 16]}
+        containerPadding={[0, 0]}
+      >
+        {children}
+      </ReactGridLayout>
+    </div>
   )
 }

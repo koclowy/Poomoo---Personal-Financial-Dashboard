@@ -1,5 +1,5 @@
 import {
-  collection, doc, addDoc, updateDoc, getDoc, getDocs,
+  collection, doc, addDoc, updateDoc, getDoc, getDocs, deleteDoc,
   query, where, arrayUnion, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from './config'
@@ -15,6 +15,10 @@ export async function createFund(dashboardId, name, columns, data, storageRef) {
     updatedAt: serverTimestamp(),
   })
   return ref.id
+}
+
+export async function deleteFund(fundId) {
+  await deleteDoc(doc(db, 'funds', fundId))
 }
 
 export async function updateFundData(fundId, newData) {

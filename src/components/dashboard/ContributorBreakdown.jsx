@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
-const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
+const COLORS = ['#A67B50', '#7A5C3A', '#C9A882', '#4B3728', '#D4A574', '#6B5B47']
 
 export default function ContributorBreakdown({ transactions }) {
   if (!transactions?.length) {
