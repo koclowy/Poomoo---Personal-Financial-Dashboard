@@ -21,6 +21,7 @@ import ContributorBreakdown from '../components/dashboard/ContributorBreakdown'
 import MonthlyContributionChart from '../components/dashboard/MonthlyContributionChart'
 import WidgetPickerPanel from '../components/dashboard/WidgetPickerPanel'
 import CollaboratorsPanel from '../components/settings/CollaboratorsPanel'
+import { updateFundGoal } from '../firebase/firestore'
 
 const BROWN = '#A67B50'
 
@@ -263,6 +264,8 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState([])
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showCollabModal, setShowCollabModal] = useState(false)
+  const [showGoalEdit, setShowGoalEdit] = useState(false)
+  const [goalInput, setGoalInput] = useState('')
   const userMenuRef = useRef(null)
   const layoutInitialised = useRef(false)
   const navigate = useNavigate()
@@ -311,6 +314,13 @@ export default function Dashboard() {
     navigate('/login')
   }
 
+  async function handleSaveGoal() {
+    if (!selectedFund) return
+    await updateFundGoal(selectedFund.id, goalInput || null)
+    setShowGoalEdit(false)
+    setGoalInput('')
+  }
+
   function handleLayoutChange(newLayout) {
     setWidgetLayout(newLayout)
     if (dashboardId) {
@@ -343,8 +353,24 @@ export default function Dashboard() {
   const selectedFund = funds.find((f) => f.id === selectedFundId) || funds[0] || null
   const balance = selectedFund ? getFundTotal(selectedFund) : 0
   const monthlyTotals = selectedFund ? getMonthlyTotals(selectedFund) : []
-  const thisMonth = monthlyTotals[monthlyTotals.length - 1]?.amount || 0
-  const lastMonth = monthlyTotals[monthlyTotals.length - 2]?.amount || 0
+
+  // Match the actual current month — "Jun 2026" format
+  const now = new Date()
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const currentMonthStr = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`
+  const prevMonthStr = now.getMonth() === 0
+    ? `Dec ${now.getFullYear() - 1}`
+    : `${MONTH_NAMES[now.getMonth() - 1]} ${now.getFullYear()}`
+
+  const thisMonthEntry = monthlyTotals.find((m) =>
+    m.month.trim().toLowerCase() === currentMonthStr.toLowerCase()
+  )
+  const lastMonthEntry = monthlyTotals.find((m) =>
+    m.month.trim().toLowerCase() === prevMonthStr.toLowerCase()
+  )
+
+  const thisMonth = thisMonthEntry?.amount || 0
+  const lastMonth = lastMonthEntry?.amount || 0
   const monthlyChangePct = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0
   const split = selectedFund ? getContributorSplit(selectedFund) : []
   const userShare = split[0]?.pct || 0
@@ -643,12 +669,82 @@ export default function Dashboard() {
                   sub={split.length >= 2 ? `${split[1]?.name || 'partner'} ${split[1]?.pct}%` : null}
                   positive={true}
                 />
-                <StatCard
-                  label="Goal progress"
-                  value={goalPct !== null ? `${goalPct}%` : '—'}
-                  sub={goal ? `of RM ${goal.toLocaleString('en-MY')}` : null}
-                  positive={true}
-                />
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs text-gray-400">Goal progress</div>
+                    <button
+                      onClick={() => { setShowGoalEdit((v) => !v); setGoalInput(goal ? String(goal) : '') }}
+                      className="text-gray-300 hover:text-gray-500 transition-colors"
+                      title={goal ? 'Edit goal' : 'Set goal'}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900 leading-none">
+                    {goalPct !== null ? `${goalPct}%` : '—'}
+                  </div>
+                  {goal && (
+                    <>
+                      <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${goalPct}%`, backgroundColor: '#A67B50' }}
+                        />
+                      </div>
+                      <div className="text-xs mt-1.5 font-medium" style={{ color: '#A67B50' }}>
+                        RM {balance.toLocaleString('en-MY')} of RM {goal.toLocaleString('en-MY')}
+                      </div>
+                    </>
+                  )}
+                  {!goal && (
+                    <div className="text-xs mt-2 text-gray-400">No goal set</div>
+                  )}
+                  {showGoalEdit && (
+                    <div className="absolute top-full left-0 mt-2 z-30 bg-white rounded-xl shadow-lg border border-gray-100 p-3 w-56">
+                      <div className="text-xs font-medium text-gray-700 mb-2">
+                        {goal ? 'Update goal' : 'Set a savings goal'}
+                      </div>
+                      <div className="relative mb-2">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">RM</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={goalInput}
+                          onChange={(e) => setGoalInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSaveGoal()}
+                          className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:border-[#A67B50]"
+                          placeholder="10000"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveGoal}
+                          className="flex-1 py-1.5 text-xs text-white rounded-lg font-medium"
+                          style={{ backgroundColor: '#A67B50' }}
+                        >
+                          Save
+                        </button>
+                        {goal && (
+                          <button
+                            onClick={() => { setGoalInput(''); handleSaveGoal() }}
+                            className="px-2.5 py-1.5 text-xs text-red-400 hover:text-red-600 border border-red-100 rounded-lg"
+                          >
+                            Clear
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setShowGoalEdit(false)}
+                          className="px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-100 rounded-lg"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* ── Edit mode hint banner ── */}

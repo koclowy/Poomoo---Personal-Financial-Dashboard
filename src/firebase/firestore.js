@@ -4,13 +4,14 @@ import {
 } from 'firebase/firestore'
 import { db } from './config'
 
-export async function createFund(dashboardId, name, columns, data, storageRef) {
+export async function createFund(dashboardId, name, columns, data, storageRef, goal = null) {
   const ref = await addDoc(collection(db, 'funds'), {
     dashboardId,
     name,
     columns,
     data,
     storageRef,
+    goal: goal ? parseFloat(goal) : null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -109,4 +110,11 @@ export async function getPendingInvites(dashboardId) {
   const q = query(collection(db, 'invites'), where('dashboardId', '==', dashboardId))
   const snap = await getDocs(q)
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
+export async function updateFundGoal(fundId, goal) {
+  await updateDoc(doc(db, 'funds', fundId), {
+    goal: goal ? parseFloat(goal) : null,
+    updatedAt: serverTimestamp(),
+  })
 }

@@ -10,6 +10,7 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
   const [columns, setColumns] = useState([])
   const [parsedData, setParsedData] = useState([])
   const [fundName, setFundName] = useState('')
+  const [goalAmount, setGoalAmount] = useState('')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
   const inputRef = useRef()
@@ -36,7 +37,7 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
     setUploading(true)
     setError(null)
     try {
-      await createFund(dashboardId, fundName.trim(), columns, parsedData, null)
+      await createFund(dashboardId, fundName.trim(), columns, parsedData, null, goalAmount || null)
       onSuccess?.()
       onClose()
     } catch (err) {
@@ -86,15 +87,34 @@ export default function UploadModal({ dashboardId, onClose, onSuccess }) {
           </div>
 
           {file && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Fund name</label>
-              <input
-                type="text"
-                value={fundName}
-                onChange={(e) => setFundName(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#A67B50]"
-                placeholder="e.g. Retirement Fund"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fund name</label>
+                <input
+                  type="text"
+                  value={fundName}
+                  onChange={(e) => setFundName(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#A67B50]"
+                  placeholder="e.g. Retirement Fund"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Savings goal <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">RM</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={goalAmount}
+                    onChange={(e) => setGoalAmount(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-[#A67B50]"
+                    placeholder="e.g. 10000"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Sets the target amount shown in Goal progress</p>
+              </div>
             </div>
           )}
 
