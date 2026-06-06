@@ -18,7 +18,8 @@ export default function BalanceOverTimeChart({ fund }) {
     .map((row) => {
       cumulative += parseNum(amountCol ? row[amountCol] : 0)
       return {
-        month: String(row[dateCol] ?? '').trim().substring(0, 3),
+        month: (() => { const s = String(row[dateCol] ?? '').trim(); const m = s.match(/^([A-Za-z]+)/); return m ? m[1].substring(0, 3) : s.substring(0, 3) })(),
+        fullMonth: String(row[dateCol] ?? '').trim(),
         balance: cumulative,
       }
     })
@@ -37,6 +38,7 @@ export default function BalanceOverTimeChart({ fund }) {
         <YAxis hide />
         <Tooltip
           formatter={(v) => [`RM ${Number(v).toLocaleString('en-MY', { minimumFractionDigits: 0 })}`, 'Balance']}
+          labelFormatter={(_, payload) => payload?.[0]?.payload?.fullMonth ?? ''}
           contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
         />
         <Area
