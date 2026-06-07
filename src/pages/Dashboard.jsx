@@ -5,7 +5,7 @@ import { useFunds } from '../hooks/useFunds'
 import UploadModal from '../components/upload/UploadModal'
 import ChatbotPanel from '../components/chatbot/ChatbotPanel'
 import { signOutUser } from '../firebase/auth'
-import { deleteFund } from '../firebase/firestore'
+import { deleteFund, updateFundData } from '../firebase/firestore'
 import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { getFundTotal, parseNum, getDateCol, getContributorCols } from '../utils/fundUtils'
@@ -218,40 +218,141 @@ function WhoContributedWidget({ allFundSplits }) {
   )
 }
 
-function TransactionsWidget({ fundRows, fundName }) {
-  if (fundRows.length === 0) {
-    return <div className="flex items-center justify-center h-full text-sm text-gray-400">No data for this fund</div>
+function TransactionsWidget({ fundRows, fundName, fund, showAddTx, setShowAddTx, txForm, setTxForm, onSave }) {
+  const dateCol = fund ? getDateCol(fund) : null
+  const contribCols = fund ? getContributorCols(fund) : []
+
+  // Months available from the fund's data rows
+  const availableMonths = fund?.data
+    ?.filter((row) => {
+      const d = String(row[dateCol] ?? '').trim().toLowerCase()
+      return d && d !== 'total'
+    })
+    .map((row) => String(row[dateCol] ?? '').trim()) ?? []
+
+  if (fundRows.length === 0 && !showAddTx) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs text-gray-400">No transactions yet</span>
+          <button
+            onClick={() => setShowAddTx(true)}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: '#A67B50' }}
+            title="Add transaction"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    )
   }
+
   return (
-    <div className="overflow-x-auto h-full">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-100">
-            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Date</th>
-            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</th>
-            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">By</th>
-            <th className="text-right py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {fundRows.map((row, i) => (
-            <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-              <td className="py-2.5 pr-4 text-sm text-gray-500 font-mono">{row.date}</td>
-              <td className="py-2.5 pr-4 text-sm text-gray-800">{row.description}</td>
-              <td className="py-2.5 pr-4">
-                {row.by && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
-                    {row.by}
-                  </span>
-                )}
-              </td>
-              <td className={`py-2.5 text-sm text-right font-semibold font-mono ${row.amount >= 0 ? 'text-gray-900' : 'text-red-500'}`}>
-                {row.amount >= 0 ? '+' : ''}RM {Math.abs(row.amount).toLocaleString('en-MY', { minimumFractionDigits: 0 })}
-              </td>
+    <div className="flex flex-col h-full gap-3">
+      {/* Add transaction form */}
+      {showAddTx && (
+        <div className="border border-gray-100 rounded-xl p-3 bg-gray-50 space-y-2 flex-shrink-0">
+          <div className="text-xs font-semibold text-gray-700 mb-1">Add transaction</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500 mb-0.5 block">Month</label>
+              <select
+                value={txForm.month}
+                onChange={(e) => setTxForm((f) => ({ ...f, month: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#A67B50] bg-white"
+              >
+                <option value="">Select month…</option>
+                {availableMonths.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-0.5 block">By</label>
+              <select
+                value={txForm.by}
+                onChange={(e) => setTxForm((f) => ({ ...f, by: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#A67B50] bg-white"
+              >
+                <option value="">Select contributor…</option>
+                {contribCols.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-0.5 block">Description</label>
+              <input
+                type="text"
+                value={txForm.description}
+                onChange={(e) => setTxForm((f) => ({ ...f, description: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#A67B50]"
+                placeholder="Deposit"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-0.5 block">Amount (RM)</label>
+              <input
+                type="number"
+                min="0"
+                value={txForm.amount}
+                onChange={(e) => setTxForm((f) => ({ ...f, amount: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#A67B50]"
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onSave}
+              disabled={!txForm.month || !txForm.by || !txForm.amount}
+              className="px-3 py-1.5 text-xs text-white rounded-lg font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: '#A67B50' }}
+            >
+              Save
+            </button>
+            <button
+              onClick={() => { setShowAddTx(false); setTxForm({ month: '', description: 'Deposit', by: '', amount: '' }) }}
+              className="px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction table */}
+      <div className="overflow-x-auto flex-1 min-h-0">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Date</th>
+              <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</th>
+              <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">By</th>
+              <th className="text-right py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {fundRows.map((row, i) => (
+              <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                <td className="py-2.5 pr-4 text-sm text-gray-500 font-mono">{row.date}</td>
+                <td className="py-2.5 pr-4 text-sm text-gray-800">{row.description}</td>
+                <td className="py-2.5 pr-4">
+                  {row.by && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
+                      {row.by}
+                    </span>
+                  )}
+                </td>
+                <td className={`py-2.5 text-sm text-right font-semibold font-mono ${row.amount >= 0 ? 'text-gray-900' : 'text-red-500'}`}>
+                  {row.amount >= 0 ? '+' : ''}RM {Math.abs(row.amount).toLocaleString('en-MY', { minimumFractionDigits: 0 })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -274,6 +375,8 @@ export default function Dashboard() {
   const [showCollabModal, setShowCollabModal] = useState(false)
   const [showGoalEdit, setShowGoalEdit] = useState(false)
   const [goalInput, setGoalInput] = useState('')
+  const [showAddTx, setShowAddTx] = useState(false)
+  const [txForm, setTxForm] = useState({ month: '', description: 'Deposit', by: '', amount: '' })
   const userMenuRef = useRef(null)
   const layoutInitialised = useRef(false)
   const navigate = useNavigate()
@@ -327,6 +430,34 @@ export default function Dashboard() {
     await updateFundGoal(selectedFund.id, goalInput || null)
     setShowGoalEdit(false)
     setGoalInput('')
+  }
+
+  async function handleAddTransaction() {
+    if (!selectedFund || !txForm.month || !txForm.by || !txForm.amount) return
+
+    const dateCol = getDateCol(selectedFund)
+    const contribCols = getContributorCols(selectedFund)
+
+    const updatedData = selectedFund.data.map((row) => {
+      if (String(row[dateCol] ?? '').trim() !== txForm.month) return row
+
+      const updatedRow = { ...row }
+      // Add the new amount on top of any existing value for that contributor
+      const existing = parseNum(updatedRow[txForm.by])
+      updatedRow[txForm.by] = existing + parseNum(txForm.amount)
+
+      // Recalculate the Amount/Total column
+      const amountCol = selectedFund.columns.find((c) => /^(amount|total|balance)$/i.test(c.trim()))
+      if (amountCol) {
+        updatedRow[amountCol] = contribCols.reduce((sum, c) => sum + parseNum(updatedRow[c]), 0)
+      }
+
+      return updatedRow
+    })
+
+    await updateFundData(selectedFund.id, updatedData)
+    setShowAddTx(false)
+    setTxForm({ month: '', description: 'Deposit', by: '', amount: '' })
   }
 
   function handleLayoutChange(newLayout) {
@@ -394,7 +525,7 @@ export default function Dashboard() {
       'monthly-deposits':      { title: 'Monthly deposits',      subtitle: '2025',       content: <MonthlyDepositsChart fund={selectedFund} /> },
       'split':                 { title: 'Split',                 subtitle: split.length >= 2 ? `you vs ${split[1]?.name}` : '', content: <SplitWidget split={split} /> },
       'who-contributed':       { title: 'Who contributed',       subtitle: 'across all funds', content: <WhoContributedWidget allFundSplits={allFundSplits} /> },
-      'transactions':          { title: 'Transactions',          subtitle: selectedFund?.name,  content: <TransactionsWidget fundRows={fundRows} fundName={selectedFund?.name} /> },
+      'transactions':          { title: 'Transactions',          subtitle: selectedFund?.name,  content: <TransactionsWidget fundRows={fundRows} fundName={selectedFund?.name} fund={selectedFund} showAddTx={showAddTx} setShowAddTx={setShowAddTx} txForm={txForm} setTxForm={setTxForm} onSave={handleAddTransaction} /> },
       'total-savings':         { title: 'Total savings',         subtitle: '',           content: <TotalSavingsWidget funds={funds} /> },
       'fund-bar-chart':        { title: 'Fund comparison',       subtitle: '',           content: <FundBarChart funds={funds} /> },
       'contribution-line':     { title: 'Contribution history',  subtitle: '',           content: <ContributionLineChart funds={funds} /> },
@@ -403,9 +534,25 @@ export default function Dashboard() {
     }
     const def = WIDGET_MAP[item.i]
     if (!def) return <div key={item.i} className="h-full" />
+    const isTransactions = item.i === 'transactions'
     return (
       <div key={item.i} className="h-full">
-        <WidgetCard title={def.title} subtitle={def.subtitle} editMode={editMode} onRemove={() => removeWidget(item.i)}>
+        <WidgetCard
+          title={def.title}
+          subtitle={def.subtitle}
+          editMode={editMode}
+          onRemove={() => removeWidget(item.i)}
+          action={isTransactions ? (
+            <button
+              onClick={() => setShowAddTx((v) => !v)}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#A67B50' }}
+              title="Add transaction"
+            >
+              +
+            </button>
+          ) : null}
+        >
           {def.content}
         </WidgetCard>
       </div>

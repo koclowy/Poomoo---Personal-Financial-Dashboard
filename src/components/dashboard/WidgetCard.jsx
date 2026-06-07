@@ -1,4 +1,4 @@
-export default function WidgetCard({ title, subtitle, children, onRemove, editMode = false }) {
+export default function WidgetCard({ title, subtitle, children, onRemove, editMode = false, action = null }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 flex flex-col h-full">
       <div className={`${editMode ? 'widget-handle cursor-grab active:cursor-grabbing' : 'cursor-default'} flex items-center justify-between px-5 py-3 border-b border-gray-100 select-none`}>
@@ -11,6 +11,7 @@ export default function WidgetCard({ title, subtitle, children, onRemove, editMo
             {subtitle && <span className="text-xs text-gray-400">{subtitle}</span>}
           </div>
         </div>
+        {action && !editMode && action}
         {onRemove && editMode && (
           <button
             onClick={onRemove}
