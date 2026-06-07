@@ -12,7 +12,7 @@ function excelDateToMonth(serial) {
 }
 
 function jsDateToMonth(d) {
-  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
 }
 
 // Returns the index of the row that looks most like a real header
