@@ -468,7 +468,20 @@ export default function Dashboard() {
                         <div className={`text-sm truncate ${isActive ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>
                           {fund.name}
                         </div>
-                        <div className="text-xs text-gray-400">RM {total.toLocaleString('en-MY')}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="text-xs text-gray-400 flex-shrink-0">RM {total.toLocaleString('en-MY')}</div>
+                          {fund.goal ? (
+                            <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${Math.min(Math.round((total / fund.goal) * 100), 100)}%`,
+                                  backgroundColor: '#A67B50',
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(confirming ? null : fund.id) }}
