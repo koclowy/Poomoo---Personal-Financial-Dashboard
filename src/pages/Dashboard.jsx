@@ -68,32 +68,40 @@ function getContributorSplit(fund) {
 function getFundRows(fund) {
   if (!fund?.data?.length || !fund?.columns?.length) return []
   const dateCol = getDateCol(fund)
-  const amountCol = fund.columns.find((c) => /^(amount|total|balance)$/i.test(c.trim()))
   const descCol = fund.columns.find((c) => /^(description|desc|note|notes|memo|type)$/i.test(c.trim()))
   const contribs = getContributorCols(fund)
 
-  return fund.data
+  const rows = []
+
+  fund.data
     .filter((row) => {
       const d = String(row[dateCol] ?? '').trim().toLowerCase()
       return d && d !== 'total'
     })
-    .map((row) => {
-      const amount = amountCol ? parseNum(row[amountCol]) : 0
-      let byName = ''
+    .forEach((row) => {
+      const date = dateCol ? String(row[dateCol] ?? '') : ''
+      const description = descCol ? String(row[descCol] ?? '') : 'Deposit'
+
       if (contribs.length > 0) {
-        for (const c of contribs) {
-          if (parseNum(row[c]) > 0) { byName = c; break }
+        // One row per contributor who has a non-zero amount
+        contribs.forEach((c) => {
+          const amount = parseNum(row[c])
+          if (amount > 0) {
+            rows.push({ date, description, by: c, amount })
+          }
+        })
+      } else {
+        // No contributor columns — fall back to showing the total
+        const amountCol = fund.columns.find((c) => /^(amount|total|balance)$/i.test(c.trim()))
+        const amount = amountCol ? parseNum(row[amountCol]) : 0
+        if (amount > 0) {
+          rows.push({ date, description, by: '', amount })
         }
-        if (!byName) byName = contribs[0]
-      }
-      return {
-        date: dateCol ? String(row[dateCol] ?? '') : '',
-        description: descCol ? String(row[descCol] ?? '') : 'Deposit',
-        by: byName,
-        amount,
       }
     })
-    .reverse()
+
+  // Most recent first
+  return rows.reverse()
 }
 
 // ── Sub-components ───────────────────────────────────────────────
