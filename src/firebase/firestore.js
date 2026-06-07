@@ -118,3 +118,11 @@ export async function updateFundGoal(fundId, goal) {
     updatedAt: serverTimestamp(),
   })
 }
+
+export async function updateFundTransactionMeta(fundId, metaKey, description) {
+  // Stores descriptions in a map: { "Jul 2026||Chloe": "Holiday savings", ... }
+  await updateDoc(doc(db, 'funds', fundId), {
+    [`txMeta.${metaKey}`]: description,
+    updatedAt: serverTimestamp(),
+  })
+}

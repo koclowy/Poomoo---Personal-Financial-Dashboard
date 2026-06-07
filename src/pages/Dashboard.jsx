@@ -5,7 +5,7 @@ import { useFunds } from '../hooks/useFunds'
 import UploadModal from '../components/upload/UploadModal'
 import ChatbotPanel from '../components/chatbot/ChatbotPanel'
 import { signOutUser } from '../firebase/auth'
-import { deleteFund, updateFundData } from '../firebase/firestore'
+import { deleteFund, updateFundData, updateFundTransactionMeta } from '../firebase/firestore'
 import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { getFundTotal, parseNum, getDateCol, getContributorCols } from '../utils/fundUtils'
@@ -70,6 +70,7 @@ function getFundRows(fund) {
   const dateCol = getDateCol(fund)
   const descCol = fund.columns.find((c) => /^(description|desc|note|notes|memo|type)$/i.test(c.trim()))
   const contribs = getContributorCols(fund)
+  const txMeta = fund.txMeta || {}   // { "Jul 2026||Chloe": "Holiday savings", ... }
 
   const rows = []
 
@@ -80,27 +81,29 @@ function getFundRows(fund) {
     })
     .forEach((row) => {
       const date = dateCol ? String(row[dateCol] ?? '') : ''
-      const description = descCol ? String(row[descCol] ?? '') : 'Deposit'
 
       if (contribs.length > 0) {
-        // One row per contributor who has a non-zero amount
         contribs.forEach((c) => {
           const amount = parseNum(row[c])
           if (amount > 0) {
+            // Look up description: prefer txMeta, then descCol, then 'Deposit'
+            const metaKey = `${date}||${c}`
+            const description = txMeta[metaKey]
+              || (descCol ? String(row[descCol] ?? '') : '')
+              || 'Deposit'
             rows.push({ date, description, by: c, amount })
           }
         })
       } else {
-        // No contributor columns — fall back to showing the total
         const amountCol = fund.columns.find((c) => /^(amount|total|balance)$/i.test(c.trim()))
         const amount = amountCol ? parseNum(row[amountCol]) : 0
         if (amount > 0) {
+          const description = (descCol ? String(row[descCol] ?? '') : '') || 'Deposit'
           rows.push({ date, description, by: '', amount })
         }
       }
     })
 
-  // Most recent first
   return rows.reverse()
 }
 
@@ -455,7 +458,11 @@ export default function Dashboard() {
       return updatedRow
     })
 
+    // Save description separately (fund rows have no description column)
+    const metaKey = `${txForm.month}||${txForm.by}`
+    const desc = txForm.description.trim() || 'Deposit'
     await updateFundData(selectedFund.id, updatedData)
+    await updateFundTransactionMeta(selectedFund.id, metaKey, desc)
     setShowAddTx(false)
     setTxForm({ month: '', description: 'Deposit', by: '', amount: '' })
   }
