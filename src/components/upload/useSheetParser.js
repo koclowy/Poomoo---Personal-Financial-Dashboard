@@ -12,7 +12,10 @@ function excelDateToMonth(serial) {
 }
 
 function jsDateToMonth(d) {
-  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+  // SheetJS produces end-of-month timestamps (e.g. Dec 31 23:59 for January).
+  // Adding 1 day shifts to the correct month (Jan 1).
+  const shifted = new Date(d.getTime() + 24 * 60 * 60 * 1000)
+  return `${MONTH_NAMES[shifted.getMonth()]} ${shifted.getFullYear()}`
 }
 
 // Returns the index of the row that looks most like a real header
